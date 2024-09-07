@@ -3,7 +3,6 @@
 
 #include <algorithm>  // For std::min
 #include <cmath>      // For std::cos, std::sin
-#include <GL/gl.h>    // Include OpenGL header (may need to adjust based on your setup)
 #include <GL/glut.h> // Include GLUT for rendering text
 #include <string>
 #include <vector>
