@@ -3,7 +3,8 @@
 
 #include <string>
 #include <unordered_set>
-#include <openssl/sha.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
