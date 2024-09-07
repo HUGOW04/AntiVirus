@@ -26,7 +26,7 @@ double mouseX = 0.0, mouseY = 0.0;
 bool mouseLeftPressed = false;
 Button* currentlyHoveredButton = nullptr;
 std::vector<Button> scanButtons, sideButtons;
-std::vector<Widget> scanRects,sideRects;
+std::vector<Widget> scanRects, sideRects;
 
 // Load hashes into an unordered_set
 std::unordered_set<std::string> hash_set = load_hashes("full_sha256.txt");
@@ -73,24 +73,24 @@ void renderLoadingAnimation(float centerX, float centerY, float radius, float ro
     glPushMatrix();
     glTranslatef(centerX, centerY, 0);
     glRotatef(-rotation, 0, 0, 1);
-    
+
     glLineWidth(lineWidth);
     glBegin(GL_LINE_STRIP);
-    
+
     for (int i = 0; i <= segments; ++i) {
-        float angle = (float)i / segments * 2 * M_PI;
+        float angle = (float)i / segments * 2 * PI;
         float x = radius * cos(angle);
         float y = radius * sin(angle);
-        
+
         float alpha = 1.0f;
         if (i > segments * (1 - fadeLength)) {
             alpha = 1.0f - (float)(i - segments * (1 - fadeLength)) / (segments * fadeLength);
         }
-        
+
         glColor4f(1.0f, 1.0f, 1.0f, alpha);
         glVertex2f(x, y);
     }
-    
+
     glEnd();
     glPopMatrix();
 }
@@ -145,8 +145,8 @@ int main(int argc, char** argv) {
 
     // Initialize buttons
     sideButtons = {
-        Button(5.0f, 530.0f, 50.0f, 50.0f, "home", "", "img/scan.png"),
-        Button(5.0f, 450.0f, 50.0f, 50.0f, "network", "", "img/wifi.png"),
+        Button(5.0f, 530.0f, 50.0f, 50.0f, "home", "", "scan.png"),
+        Button(5.0f, 450.0f, 50.0f, 50.0f, "network", "", "wifi.png"),
     };
 
     scanButtons = {
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     };
 
     // Add rounded rectangles
-    float rectColor[3] = {0.2f, 0.2f, 0.2f};
+    float rectColor[3] = { 0.2f, 0.2f, 0.2f };
 
     sideRects = {
         Widget(-20.0f, 0.0f, 80.0f, 600.0f, 20.0f, rectColor),
@@ -182,17 +182,17 @@ int main(int argc, char** argv) {
         // Clear the screen
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        
-        
-        
+
+
+
         // Render rounded rectangle widgets
         for (const auto& rect : sideRects)
             rect.render();
         for (const auto& button : sideButtons)
             button.render(mouseX, mouseY);
-        
-        
-        
+
+
+
         // Update button states and determine the currently hovered button
         Button* newHoveredButton = nullptr;
         for (auto& button : scanButtons) {
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
             if (button.isHovered) newHoveredButton = &button;
         }
 
-          // Apply fade-out to the previous hovered button if necessary
+        // Apply fade-out to the previous hovered button if necessary
         if (currentlyHoveredButton && currentlyHoveredButton != newHoveredButton) {
             currentlyHoveredButton->isHovered = false;
             currentlyHoveredButton->fadeAlpha = 0.0f;
@@ -212,12 +212,12 @@ int main(int argc, char** argv) {
         // Update the currently hovered button
         currentlyHoveredButton = newHoveredButton;
 
-        if(scan)
+        if (scan)
         {
             for (const auto& rect : scanRects)
                 rect.render();
             // Render buttons
-            
+
             for (const auto& button : scanButtons)
                 button.render(mouseX, mouseY);
 
@@ -227,25 +227,25 @@ int main(int argc, char** argv) {
             // Update progress if scanning
             if (scanning) {
                 renderLoadingAnimation(550, 500, 30.0f, rotation);
-                
+
                 float progress = static_cast<float>(files_processed) / total_files;
                 char progressText[64];
-                snprintf(progressText, sizeof(progressText), "%.1f%% (%d/%d files)", 
-                        progress * 100, files_processed.load(), total_files.load());
+                snprintf(progressText, sizeof(progressText), "%.1f%% (%d/%d files)",
+                    progress * 100, files_processed.load(), total_files.load());
                 glColor3f(1.0f, 1.0f, 1.0f);
                 renderText(progressText, 450, 400);
-                
-                scanRects[1].setText("filepath: "+filePath);
+
+                scanRects[1].setText("filepath: " + filePath);
                 scanRects[3].setText(hashString);
-                scanRects[4].setText("status: "+status);
-                scanRects[5].setText("viruses found: "+numofthreat);
+                scanRects[4].setText("status: " + status);
+                scanRects[5].setText("viruses found: " + numofthreat);
             }
             else
             {
                 scanRects[1].setText("filepath: ");
                 scanRects[3].setText(hashString);
-                scanRects[4].setText("status: "+status);
-            }  
+                scanRects[4].setText("status: " + status);
+            }
         }
         // Swap the screen buffers
         glfwSwapBuffers(window);
@@ -271,23 +271,23 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 // Callback for mouse button events
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        
+
         for (const auto& button : sideButtons) {
             if (mouseX >= button.getX() && mouseX <= button.getX() + button.getWidth() &&
                 mouseY >= button.getY() && mouseY <= button.getY() + button.getHeight()) {
-                if (button.getId() == "home") 
+                if (button.getId() == "home")
                 {
                     scan = true;
                     network = false;
                 }
-                else if(button.getId() == "network")
+                else if (button.getId() == "network")
                 {
                     scan = false;
                     network = true;
-                } 
+                }
             }
         }
-        if(scan)
+        if (scan)
         {
             for (const auto& button : scanButtons) {
                 if (mouseX >= button.getX() && mouseX <= button.getX() + button.getWidth() &&
@@ -308,20 +308,22 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
                             // Start scanning the selected file
                             std::thread scan_thread(scan_file, file, std::ref(hash_set));
                             scan_thread.detach();  // Detach the thread so it can run independently
-                        } else {
+                        }
+                        else {
                             std::cout << "No file selected" << std::endl;
                         }
-                    } else if (button.getId() == "Fullscan") {
+                    }
+                    else if (button.getId() == "Fullscan") {
                         std::string path = "";
-                        #ifdef __linux__
+#ifdef __linux__
                         std::string pcName = getenv("USER");
                         path = "/home/" + pcName + "/";
-                        #elif _WIN32
+#elif _WIN32
                         path = "C:\\";
-                        #elif __APPLE__
+#elif __APPLE__
                         std::string homePath = getenv("HOME");
                         path = homePath + "/";
-                        #endif
+#endif
 
                         // Start scanning in a separate thread
                         std::thread scan_thread(scan_directory, path, std::ref(hash_set));
