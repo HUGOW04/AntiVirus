@@ -657,60 +657,78 @@ static char * utf16to8(wchar_t const * const aUtf16string)
 }
 
 
-static void runSilentA(char const * const aString)
+static void runSilentA(const char* const aString)
 {
 	STARTUPINFOA StartupInfo;
 	PROCESS_INFORMATION ProcessInfo;
-	char * lArgs;
-	char * pEnvCMD = NULL;
-	char * pDefaultCMD = "CMD.EXE";
+	char* lArgs;
+	const wchar_t* pDefaultCMD = L"CMD.EXE";
+	char pDefaultCMD_narrow[MAX_PATH_OR_CMD];
+
 	ULONG rc;
 	int lStringLen = 0;
 
+	// Initialize StartupInfo
 	memset(&StartupInfo, 0, sizeof(StartupInfo));
 	StartupInfo.cb = sizeof(STARTUPINFOA);
 	StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
 	StartupInfo.wShowWindow = SW_HIDE;
 
-	if ( aString )
+	if (aString)
 	{
 		lStringLen = strlen(aString);
 	}
-	lArgs = (char *) malloc( MAX_PATH_OR_CMD + lStringLen );
 
-	pEnvCMD = getenv("COMSPEC");
+	// Allocate memory for lArgs
+	lArgs = (char*)malloc(MAX_PATH_OR_CMD + lStringLen + 10); // +10 for additional command and parameters
 
-	if (pEnvCMD){
-
-		strcpy(lArgs, pEnvCMD);
-	}
-	else{
-		strcpy(lArgs, pDefaultCMD);
+	if (!lArgs) {
+		printf("Memory allocation failed\n");
+		return;
 	}
 
-	/* c to execute then terminate the command window */
-	strcat(lArgs, " /c ");
+	// Convert wide string to narrow string
+	if (WideCharToMultiByte(CP_ACP, 0, pDefaultCMD, -1, pDefaultCMD_narrow, MAX_PATH_OR_CMD, NULL, NULL) == 0) {
+		free(lArgs);
+		printf("WideCharToMultiByte failed\n");
+		return;
+	}
 
-	/* application and parameters to run from the command window */
-	strcat(lArgs, aString);
+	// Get environment variable
+	const char* pEnvCMD = getenv("COMSPEC");
 
+	if (pEnvCMD) {
+		strcpy_s(lArgs, MAX_PATH_OR_CMD + lStringLen + 10, pEnvCMD);
+	}
+	else {
+		strcpy_s(lArgs, MAX_PATH_OR_CMD + lStringLen + 10, pDefaultCMD_narrow);
+	}
+
+	// Append the command to execute
+	strcat_s(lArgs, MAX_PATH_OR_CMD + lStringLen + 10, " /c ");
+	strcat_s(lArgs, MAX_PATH_OR_CMD + lStringLen + 10, aString);
+
+	// Create process
 	if (!CreateProcessA(NULL, lArgs, NULL, NULL, FALSE,
 		CREATE_NEW_CONSOLE, NULL, NULL,
 		&StartupInfo, &ProcessInfo))
 	{
 		free(lArgs);
-		return; /* GetLastError(); */
+		printf("CreateProcessA failed: %lu\n", GetLastError());
+		return;
 	}
 
+	// Wait for the process to complete
 	WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
 	if (!GetExitCodeProcess(ProcessInfo.hProcess, &rc))
 		rc = 0;
 
+	// Clean up
 	CloseHandle(ProcessInfo.hThread);
 	CloseHandle(ProcessInfo.hProcess);
-
 	free(lArgs);
-	return; /* rc */
+
+	// Optionally, you can return the exit code or handle it as needed
 }
 
 
@@ -721,7 +739,7 @@ static void runSilentW(wchar_t const * const aString)
 	ULONG rc;
 	wchar_t * lArgs;
 	wchar_t * pEnvCMD;
-	wchar_t * pDefaultCMD = L"CMD.EXE";
+	const wchar_t* pDefaultCMD = L"CMD.EXE";
 	int lStringLen = 0;
 
 	memset(&StartupInfo, 0, sizeof(StartupInfo));
