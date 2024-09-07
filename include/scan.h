@@ -15,6 +15,7 @@
 #include <queue>
 #include <atomic>
 #include <unordered_set>
+#include <algorithm>
 
 // Declare global variables
 extern std::queue<std::filesystem::path> file_queue;
