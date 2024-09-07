@@ -1,15 +1,4 @@
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <string>
-#include <sstream>
-#include <filesystem>
-#include <unordered_set>
-#include <vector>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <openssl/evp.h>
+#include "scan.h"
 
 std::mutex queue_mutex;
 std::mutex output_mutex;
