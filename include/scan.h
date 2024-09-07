@@ -6,6 +6,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <iostream>
 #include <filesystem>
