@@ -5,6 +5,7 @@
 #include <cmath>
 #include <string>
 #include <filesystem>
+#include <fstream>
 
 
 #include "widget.h"
@@ -143,15 +144,20 @@ int main(int argc, char** argv) {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+    // clean or remove the log file
+    std::ofstream ofs("log.txt", std::ofstream::out | std::ofstream::trunc);
+    ofs.close();
+
     // Initialize buttons
     sideButtons = {
-        Button(5.0f, 530.0f, 50.0f, 50.0f, "home", "", "scan.png"),
-        Button(5.0f, 450.0f, 50.0f, 50.0f, "network", "", "wifi.png"),
+        Button(5.0f, 530.0f, 50.0f, 50.0f, "home", "", "img/scan.png"),
+        Button(5.0f, 450.0f, 50.0f, 50.0f, "network", "", "img/wifi.png"),
     };
 
     scanButtons = {
         Button(110.0f, 500.0f, 80.0f, 30.0f, "Scan", "Scan", ""),
         Button(210.0f, 500.0f, 80.0f, 30.0f, "Fullscan", "Fullscan", ""),
+        Button(160.0f, 460.0f, 80.0f, 30.0f, "Log", "Log", ""),
     };
 
     // Add rounded rectangles
@@ -328,6 +334,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
                         // Start scanning in a separate thread
                         std::thread scan_thread(scan_directory, path, std::ref(hash_set));
                         scan_thread.detach();  // Detach the thread so it can run independently
+                    }
+                    else if (button.getId() == "Log")
+                    {
+                        std::cout<<"hi"<<std::endl;
                     }
                 }
             }
