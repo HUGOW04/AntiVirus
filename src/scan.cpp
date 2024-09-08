@@ -1,4 +1,5 @@
 #include "scan.h"
+#include <fstream>
 
 std::mutex queue_mutex;
 std::mutex output_mutex;
@@ -106,6 +107,8 @@ bool is_hash_in_set(const std::unordered_set<std::string>& hash_set, const std::
 }
 
 void process_files(const std::unordered_set<std::string>& hash_set, std::vector<std::filesystem::path> thread_file_paths) {
+    std::ofstream log_file("log.txt", std::ios::app);  // Open log file in append mode
+    
     while (!thread_file_paths.empty()) {
         std::filesystem::path file_path = thread_file_paths.back();
         thread_file_paths.pop_back();
@@ -120,8 +123,19 @@ void process_files(const std::unordered_set<std::string>& hash_set, std::vector<
                     hashString = hash;
                     status = "malware";
                     numofthreat = std::to_string(threat);
+                    
+                    // Log the malware detection
+                    if (log_file.is_open()) {
+                        log_file << "MALWARE DETECTED: " << filePath << std::endl;
+                    }
+                    
                 }
                 else {
+                    /*
+                    if (log_file.is_open()) {
+                        log_file << "FILE IS CLEAN: " << filePath << std::endl;
+                    }
+                    */
                     hashString = hash;
                     status = "clean";
                 }
@@ -146,6 +160,8 @@ void process_files(const std::unordered_set<std::string>& hash_set, std::vector<
 
         files_processed++;
     }
+    
+    log_file.close();  // Close the log file
 }
 
 
