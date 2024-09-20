@@ -85,7 +85,25 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
                     }
                     else if (button.getId() == "Log")
                     {
-                        std::cout<<"hi"<<std::endl;
+                        const char* logFileName = "log.txt";
+    
+#ifdef _WIN32
+                        // Windows
+                        std::string command = "notepad " + std::string(logFileName);
+#elif __APPLE__
+                        // macOS
+                        std::string command = "open -e " + std::string(logFileName);
+#elif __linux__
+                        // Linux
+                        std::string command = "xdg-open " + std::string(logFileName);
+#else
+                        #error "Unsupported operating system"
+#endif
+
+                        int result = system(command.c_str());
+                        if (result != 0) {
+                            std::cerr << "Failed to open the log file." << std::endl;
+                        }
                     }
                 }
             }
