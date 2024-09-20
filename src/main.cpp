@@ -22,54 +22,189 @@ std::vector<Widget> scanRects, sideRects;
 // Load hashes into an unordered_set
 std::unordered_set<std::string> hash_set = load_hashes("full_sha256.txt");
 
-// Function to render the dynamic progress animation
 void renderDynamicProgressAnimation(float centerX, float centerY, float size, float progress, float time, bool isScanning) {
     const int segments = 100;
     const float lineWidth = 5.0f;
-    const int numCircles = 3;
     const float maxRadius = size / 2;
     const float minRadius = size / 6;
 
     glPushMatrix();
     glTranslatef(centerX, centerY, 0);
 
-    // Draw pulsating circles
-    for (int i = 0; i < numCircles; ++i) {
-        float phase = 2 * M_PI * i / numCircles;
-        float radius = minRadius + (maxRadius - minRadius) * (sin(time * 2 + phase) + 1) / 2;
-
-        glColor4f(0.0f, 0.7f, 1.0f, 0.3f);  // Light blue color with more transparency
-        glBegin(GL_TRIANGLE_FAN);
-        glVertex2f(0, 0);
-        for (int j = 0; j <= 30; ++j) {
-            float angle = 2 * M_PI * j / 30;
-            float x = radius * cos(angle);
-            float y = radius * sin(angle);
-            glVertex2f(x, y);
-        }
-        glEnd();
-    }
-
-    // Draw progress arc
-    glLineWidth(lineWidth);
     if (isScanning) {
-        glColor4f(0.0f, 0.7f, 1.0f, 1.0f);  // Light blue color for idle
+        // Improved scanning animation
+        const int numRings = 5;
+        const float ringSpacing = (maxRadius - minRadius) / (numRings - 1);
+
+        // Draw pulsating rings
+        for (int i = 0; i < numRings; ++i) {
+            float baseRadius = minRadius + i * ringSpacing;
+            float phase = 2 * M_PI * i / numRings;
+            float pulseAmount = (sin(time * 3 + phase) + 1) / 2;
+            float radius = baseRadius + pulseAmount * (ringSpacing * 0.5f);
+
+            glLineWidth(lineWidth * (1.0f - (float)i / numRings));
+            glColor4f(0.0f, 0.7f, 1.0f, 0.3f * (1.0f - (float)i / numRings));
+            
+            glBegin(GL_LINE_LOOP);
+            for (int j = 0; j <= segments; ++j) {
+                float angle = 2 * M_PI * j / segments;
+                float x = radius * cos(angle);
+                float y = radius * sin(angle);
+                glVertex2f(x, y);
+            }
+            glEnd();
+        }
+
+        // Draw scanning beam
+        glLineWidth(lineWidth * 2);
+        glColor4f(0.0f, 0.9f, 1.0f, 0.7f);
+        
+        float beamAngle = -2 * M_PI * time;
+        glBegin(GL_LINES);
+        glVertex2f(0, 0);
+        glVertex2f(maxRadius * cos(beamAngle), maxRadius * sin(beamAngle));
+        glEnd();
+
+        // Improved progress arc
+        const float arcWidth = lineWidth * 2.5f;
+        const float glowWidth = arcWidth * 2.0f;
+        const int glowSteps = 5;
+
+        // Draw glow effect
+        for (int step = 0; step < glowSteps; ++step) {
+            float alpha = 0.2f * (1.0f - (float)step / glowSteps);
+            float stepWidth = arcWidth + (glowWidth - arcWidth) * ((float)step / glowSteps);
+            
+            glLineWidth(stepWidth);
+            glColor4f(0.0f, 0.7f, 1.0f, alpha);
+            
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= segments; i++) {
+                float t = (float)i / segments;
+                if (t > progress) {
+                    // Smooth transition at the end of the arc
+                    float fadeOut = 1.0f - ((t - progress) / 0.1f);
+                    if (fadeOut <= 0) break;
+                    glColor4f(0.0f, 0.7f, 1.0f, alpha * fadeOut);
+                }
+                float theta = -(2.0f * M_PI * t) + M_PI / 2.0f;  // Clockwise rotation
+                float x = maxRadius * cosf(theta);
+                float y = maxRadius * sinf(theta);
+                glVertex2f(x, y);
+            }
+            glEnd();
+        }
+
+        // Draw main arc
+        glLineWidth(arcWidth);
+        glColor4f(0.0f, 0.9f, 1.0f, 1.0f);
         
         glBegin(GL_LINE_STRIP);
         for (int i = 0; i <= segments; i++) {
-            float theta = -(2.0f * M_PI * float(i) / float(segments)) + M_PI / 2.0f;  // Clockwise rotation
-            if (isScanning) {
-                if (i > segments * progress) break;
-            } else {
-                if (i > segments * fmod(time, 1.0f)) break;
+            float t = (float)i / segments;
+            if (t > progress) {
+                // Smooth transition at the end of the arc
+                float fadeOut = 1.0f - ((t - progress) / 0.05f);
+                if (fadeOut <= 0) break;
+                glColor4f(0.0f, 0.9f, 1.0f, fadeOut);
             }
+            float theta = -(2.0f * M_PI * t) + M_PI / 2.0f;  // Clockwise rotation
             float x = maxRadius * cosf(theta);
             float y = maxRadius * sinf(theta);
             glVertex2f(x, y);
         }
         glEnd();
+
+        // Draw pulsating core
+        float corePulse = 0.7f + 0.3f * sinf(time * 5);
+        glColor4f(0.0f, 0.9f, 1.0f, 1.0f);
+        glBegin(GL_TRIANGLE_FAN);
+        glVertex2f(0, 0);
+        for (int i = 0; i <= 30; ++i) {
+            float angle = 2 * M_PI * i / 30;
+            float x = minRadius * corePulse * cosf(angle);
+            float y = minRadius * corePulse * sinf(angle);
+            glVertex2f(x, y);
+        }
+        glEnd();
     } else {
-        //glColor4f(1.0f, 1.0f, 1.0f, 1.0f);  // Green color for scanning
+// Idle animation with round particles
+        const int numOrbitals = 3;
+        const int particlesPerOrbital = 5;
+        const int particleSegments = 16;  // Number of segments to draw circular particles
+        
+        // Draw orbiting particles
+        for (int i = 0; i < numOrbitals; ++i) {
+            float orbitalRadius = minRadius + (maxRadius - minRadius) * ((float)i / (numOrbitals - 1));
+            float orbitalSpeed = 1.0f - ((float)i / numOrbitals);
+            
+            for (int j = 0; j < particlesPerOrbital; ++j) {
+                float angle = -time * (1.5f + orbitalSpeed) + (2 * M_PI * j) / particlesPerOrbital;
+                float x = orbitalRadius * cosf(angle);
+                float y = orbitalRadius * sinf(angle);
+                
+                float pulseScale = 0.5f + 0.5f * sinf(time * 5 + i * 2 + j);
+                float particleSize = lineWidth * (1.5f - (float)i / numOrbitals) * pulseScale;
+                
+                glColor4f(0.0f, 0.7f, 1.0f, 0.7f * pulseScale);
+                
+                // Draw round particle
+                glBegin(GL_TRIANGLE_FAN);
+                glVertex2f(x, y);  // Center of the circle
+                for (int k = 0; k <= particleSegments; ++k) {
+                    float segmentAngle = 2 * M_PI * k / particleSegments;
+                    float px = x + particleSize / 2 * cosf(segmentAngle);
+                    float py = y + particleSize / 2 * sinf(segmentAngle);
+                    glVertex2f(px, py);
+                }
+                glEnd();
+                
+                // Draw particle trail
+                glLineWidth(particleSize / 2);
+                glBegin(GL_LINE_STRIP);
+                for (int k = 1; k <= 5; ++k) {
+                    float trailAngle = angle + (k * 0.1f);
+                    float trailX = orbitalRadius * cosf(trailAngle);
+                    float trailY = orbitalRadius * sinf(trailAngle);
+                    glColor4f(0.0f, 0.7f, 1.0f, 0.15f * pulseScale * (1.0f - (float)k / 5));
+                    glVertex2f(trailX, trailY);
+                }
+                glEnd();
+            }
+        }
+        
+        // Draw energy waves
+        glLineWidth(lineWidth / 2);
+        const int numWaves = 3;
+        for (int i = 0; i < numWaves; ++i) {
+            float waveProgress = fmodf(time * (0.5f + (float)i * 0.2f), 1.0f);
+            float waveRadius = maxRadius * waveProgress;
+            float alpha = 0.5f * (1.0f - waveProgress);
+            
+            glColor4f(0.0f, 0.7f, 1.0f, alpha);
+            glBegin(GL_LINE_LOOP);
+            for (int j = 0; j <= segments; ++j) {
+                float theta = 2.0f * M_PI * j / segments;
+                float x = waveRadius * cosf(theta);
+                float y = waveRadius * sinf(theta);
+                glVertex2f(x, y);
+            }
+            glEnd();
+        }
+        
+        // Central pulsating core
+        float corePulse = 0.7f + 0.3f * sinf(time * 3);
+        glColor4f(0.0f, 0.7f, 1.0f, 0.8f);
+        glBegin(GL_TRIANGLE_FAN);
+        glVertex2f(0, 0);
+        for (int i = 0; i <= 30; ++i) {
+            float angle = 2 * M_PI * i / 30;
+            float x = minRadius * corePulse * cosf(angle);
+            float y = minRadius * corePulse * sinf(angle);
+            glVertex2f(x, y);
+        }
+        glEnd();
     }
 
     glPopMatrix();
@@ -145,12 +280,22 @@ void renderText(const char* text, float x, float y) {
 }
 
 // New global variables for background color
-float backgroundStartColor[3] = {0.0f, 0.0f, 0.2f};  // Dark blue
-float backgroundEndColor[3] = {0.0f, 0.5f, 1.0f};    // Light blue
+
 float colorOffset = 0.0f;
 
 // Function to render the diagonal gradient background
 void renderBackground() {
+        float backgroundStartColor[3];
+    float backgroundEndColor[3];
+
+    // Change colors based on scanning state
+    if (scanning) {
+        backgroundStartColor[0] = 0.2f; backgroundStartColor[1] = 0.0f; backgroundStartColor[2] = 0.0f;  // Dark red
+        backgroundEndColor[0] = 1.0f; backgroundEndColor[1] = 0.5f; backgroundEndColor[2] = 0.0f;        // Orange
+    } else {
+        backgroundStartColor[0] = 0.0f; backgroundStartColor[1] = 0.0f; backgroundStartColor[2] = 0.2f;  // Dark blue
+        backgroundEndColor[0] = 0.0f; backgroundEndColor[1] = 0.5f; backgroundEndColor[2] = 1.0f;        // Light blue
+    }
     glBegin(GL_TRIANGLES);
     
     // Bottom-left to top-right diagonal
@@ -341,6 +486,7 @@ int main(int argc, char** argv) {
                 scanRects[1].setText("filepath: ");
                 scanRects[3].setText("sha256: "+hashString);
                 scanRects[4].setText("status: " + status);
+                scanRects[5].setText("viruses found: " + numofthreat);
             }
         }
         // Swap the screen buffers
