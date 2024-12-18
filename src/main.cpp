@@ -331,9 +331,13 @@ int main(int argc, char** argv) {
     
     // Update hash database before initializing the rest
     std::cout << "Updating malware hash database..." << std::endl;
-    if (!updateHashDatabase()) {
-        std::cerr << "Failed to update hash database: " << errorMSG << std::endl;
-        std::cerr << "Will try to use existing database file..." << std::endl;
+    std::ifstream fileHash("full_sha256.txt");
+    if(!fileHash.good())
+    {
+        if (!updateHashDatabase()) {
+            std::cerr << "Failed to update hash database: " << errorMSG << std::endl;
+            std::cerr << "Will try to use existing database file..." << std::endl;
+        }
     }
 
     // Load hashes into an unordered_set (keep your existing code)
