@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
         Widget(80.0f, 320.0f, 200.0f, 30.0f, 0.0f, rectColor,numofthreat),
         Widget(80.0f, 280.0f, 720.0f, 30.0f, 20.0f, rectColor,hashString),
         Widget(80.0f, 150.0f, 720.0f, 100.0f, 20.0f, rectColor, filePath),
-        Widget(80.0f, 5.0f, 720.0f, 100.0f, 20.0f, rectColor, filePath),
+        Widget(80.0f, 5.0f, 720.0f, 140.0f, 20.0f, rectColor, errorMSG),
     };
 
     networkRects = {
