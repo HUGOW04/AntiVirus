@@ -108,42 +108,58 @@ std::unordered_set<std::string> load_hashes(const std::string& filename) {
 }
 
 void process_files(const std::unordered_set<std::string>& hash_set, std::vector<std::filesystem::path> thread_file_paths) {
-    // Open log file with RAII
+    // Use a fixed-size buffer for reading files
     std::unique_ptr<std::ofstream> log_file = std::make_unique<std::ofstream>("log.txt", std::ios::app);
     
+    // Process files in smaller batches
+    const size_t BATCH_SIZE = 100; // Adjust this value based on your system's memory
+    
     while (!thread_file_paths.empty()) {
-        // Get the next file path and remove it from the vector
-        std::filesystem::path file_path = std::move(thread_file_paths.back());
-        thread_file_paths.pop_back();
-
-        try {
-            std::string hash = sha256_file(file_path.string());
-            if (!hash.empty()) {
-                std::lock_guard<std::mutex> lock(output_mutex);
+        size_t batch_count = 0;
+        std::vector<std::filesystem::path> batch;
+        
+        while (!thread_file_paths.empty() && batch_count < BATCH_SIZE) {
+            batch.push_back(std::move(thread_file_paths.back()));
+            thread_file_paths.pop_back();
+            batch_count++;
+        }
+        
+        for (const auto& file_path : batch) {
+            try {
+                // Clear any previous error message
+                errorMSG.clear();
                 
-                filePath = file_path.string();
-                hashString = hash;
-                
-                if (is_hash_in_set(hash_set, hash)) {
-                    threat++;
-                    status = "malware";
-                    numofthreat = std::to_string(threat);
+                std::string hash = sha256_file(file_path.string());
+                if (!hash.empty()) {
+                    std::lock_guard<std::mutex> lock(output_mutex);
                     
-                    if (log_file && log_file->is_open()) {
-                        *log_file << "MALWARE DETECTED: " << filePath << std::endl;
-                        log_file->flush();
+                    filePath = file_path.string();
+                    hashString = hash;
+                    
+                    if (is_hash_in_set(hash_set, hash)) {
+                        threat++;
+                        status = "malware";
+                        numofthreat = std::to_string(threat);
+                        
+                        if (log_file && log_file->is_open()) {
+                            *log_file << "MALWARE DETECTED: " << filePath << std::endl;
+                            log_file->flush();
+                        }
+                    } else {
+                        status = "clean";
                     }
-                } else {
-                    status = "clean";
                 }
+                
+                files_processed++;
+            }
+            catch (const std::exception& e) {
+                std::lock_guard<std::mutex> lock(output_mutex);
+                errorMSG = "Error processing file " + file_path.string() + ": " + e.what();
             }
         }
-        catch (const std::exception& e) {
-            std::lock_guard<std::mutex> lock(output_mutex);
-            errorMSG = "Error processing file " + file_path.string() + ": " + e.what();
-        }
-
-        files_processed++;
+        
+        // Clear the batch to free memory
+        batch.clear();
     }
 }
 
@@ -154,7 +170,6 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
     threat = 0;
     errorMSG.clear();
     
-    // Check if directory exists before starting scan
     if (!std::filesystem::exists(path)) {
         std::lock_guard<std::mutex> lock(output_mutex);
         errorMSG = "Error: Directory does not exist: " + path;
@@ -162,7 +177,6 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
         return;
     }
 
-    // Check if path is actually a directory
     if (!std::filesystem::is_directory(path)) {
         std::lock_guard<std::mutex> lock(output_mutex);
         errorMSG = "Error: Path is not a directory: " + path;
@@ -170,44 +184,42 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
         return;
     }
 
-    std::vector<std::filesystem::path> file_paths;
+    std::queue<std::filesystem::path> file_queue;
+    
     try {
-        std::error_code ec; // For handling filesystem errors
+        std::error_code ec;
+        // Modify directory iterator options to not follow symlinks
         std::filesystem::recursive_directory_iterator dir_iter(
-            path, 
-            std::filesystem::directory_options::skip_permission_denied | 
-            std::filesystem::directory_options::follow_directory_symlink,
+            path,
+            std::filesystem::directory_options::skip_permission_denied,  // Removed follow_directory_symlink
             ec
         );
 
-        std::filesystem::recursive_directory_iterator end_iter;
-        
-        while (dir_iter != end_iter && !ec) {
+        const int MAX_DEPTH = 16; // Set maximum directory depth
+
+        for (const auto& entry : dir_iter) {
+            if (dir_iter.depth() > MAX_DEPTH) {
+                dir_iter.pop(); // Go back up one level
+                continue;
+            }
+
+            if (ec) {
+                std::lock_guard<std::mutex> lock(output_mutex);
+                errorMSG = "Warning: Skipping path: " + entry.path().string() + " (" + ec.message() + ")";
+                ec.clear();
+                continue;
+            }
+
             try {
-                const auto& entry = *dir_iter;
-                if (entry.is_regular_file()) {
-                    file_paths.push_back(entry.path());
+                if (entry.is_regular_file() && !entry.is_symlink()) { // Only process regular files, not symlinks
+                    file_queue.push(entry.path());
                     total_files++;
                 }
-                dir_iter.increment(ec);
-                if (ec) {
-                    std::lock_guard<std::mutex> lock(output_mutex);
-                    errorMSG = "Warning: Skipping inaccessible path: " + entry.path().string() + " (" + ec.message() + ")";
-                    ec.clear();
-                    dir_iter.pop();
-                    if (dir_iter == end_iter) break;
-                }
-            }
-            catch (const std::filesystem::filesystem_error& e) {
+            } catch (const std::filesystem::filesystem_error& e) {
                 std::lock_guard<std::mutex> lock(output_mutex);
-                errorMSG = "Warning: Skipping file due to access error: " + std::string(e.what());
-                dir_iter.increment(ec);
+                errorMSG = "Warning: Skipping file: " + entry.path().string() + " - " + e.what();
+                continue;
             }
-        }
-
-        if (ec) {
-            std::lock_guard<std::mutex> lock(output_mutex);
-            errorMSG = "Warning: Some errors occurred during directory traversal: " + ec.message();
         }
     }
     catch (const std::exception& e) {
@@ -217,45 +229,43 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
         return;
     }
 
-    if (file_paths.empty()) {
+    if (file_queue.empty()) {
         std::lock_guard<std::mutex> lock(output_mutex);
         errorMSG = "No files found in directory: " + path;
         scanning = false;
         return;
     }
 
-    // Calculate number of threads and chunk size
+    // Process files in chunks
+    const size_t CHUNK_SIZE = 1000; // Adjust based on your system's memory
     unsigned int num_threads = std::thread::hardware_concurrency();
-    num_threads = std::max(1u, std::min(num_threads, static_cast<unsigned int>(file_paths.size())));
-    
-    size_t chunk_size = (file_paths.size() + num_threads - 1) / num_threads;
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
 
-    // Create a copy of hash_set to ensure it stays valid
-    auto hash_set_copy = hash_set;
-
-    // Create and start threads
-    for (unsigned int i = 0; i < num_threads; ++i) {
-        size_t start = i * chunk_size;
-        size_t end = std::min(start + chunk_size, file_paths.size());
+    while (!file_queue.empty()) {
+        std::vector<std::filesystem::path> chunk;
+        chunk.reserve(CHUNK_SIZE);
         
-        if (start >= end) break;
-
-        std::vector<std::filesystem::path> thread_files(
-            file_paths.begin() + start,
-            file_paths.begin() + end
-        );
-
-        threads.emplace_back([thread_files = std::move(thread_files), &hash_set_copy]() {
-            process_files(hash_set_copy, std::move(thread_files));
+        {
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            while (!file_queue.empty() && chunk.size() < CHUNK_SIZE) {
+                chunk.push_back(file_queue.front());
+                file_queue.pop();
+            }
+        }
+        
+        threads.emplace_back([chunk = std::move(chunk), &hash_set]() {
+            process_files(hash_set, std::move(chunk));
         });
-    }
-
-    // Wait for all threads to complete
-    for (auto& thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
+        
+        // If we've reached max threads or no more files, wait for completion
+        if (threads.size() >= num_threads || file_queue.empty()) {
+            for (auto& thread : threads) {
+                if (thread.joinable()) {
+                    thread.join();
+                }
+            }
+            threads.clear();
         }
     }
 
