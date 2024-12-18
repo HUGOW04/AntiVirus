@@ -330,7 +330,6 @@ int main(int argc, char** argv) {
     curl_global_init(CURL_GLOBAL_ALL);
     
     // Update hash database before initializing the rest
-    std::cout << "Updating malware hash database..." << std::endl;
     std::ifstream fileHash("full_sha256.txt");
     if(!fileHash.good())
     {
@@ -338,6 +337,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to update hash database: " << errorMSG << std::endl;
             std::cerr << "Will try to use existing database file..." << std::endl;
         }
+        std::cout << "Updating malware hash database..." << std::endl;
     }
 
     // Load hashes into an unordered_set (keep your existing code)
