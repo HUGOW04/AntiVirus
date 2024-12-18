@@ -478,7 +478,7 @@ int main(int argc, char** argv) {
                 scanRects[3].setText("viruses found: " + numofthreat);
                 scanRects[4].setText("sha256: "+hashString);
                 scanRects[5].setText("filepath: " + filePath);
-                scanRects[6].setText("errorMSG: " + errorMSG);
+                scanRects[6].setText("warning: " + errorMSG);
             }
             else
             {
@@ -488,7 +488,7 @@ int main(int argc, char** argv) {
                 scanRects[3].setText("viruses found: " + numofthreat);
                 scanRects[4].setText("sha256: "+hashString);
                 scanRects[5].setText("filepath: ");
-                scanRects[6].setText("errorMSG: " + errorMSG);
+                scanRects[6].setText("warning: " + errorMSG);
             }
         }
         else if(network)
