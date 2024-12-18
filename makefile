@@ -5,7 +5,7 @@ INCLUDE :=  include
 SRC     :=  src
 BIN     :=  bin
 
-LIBS    :=  -lssl -lcrypto
+LIBS    :=  -lGL -lGLU -lglfw -lglut -lGLEW -lssl -lcrypto -lcurl -lzip
 EXE     :=  main
 DEPS    :=  $(wildcard $(SRC)/*.cpp)
 OBJ     :=  $(patsubst $(SRC)/%.cpp, $(BIN)/%.o, $(DEPS))
