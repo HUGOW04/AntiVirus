@@ -28,7 +28,7 @@ extern std::string filePath;
 extern std::string hashString;
 extern std::string status;
 extern std::string numofthreat;
-extern std::string errorMSG;
+extern std::string msg;
 
 std::string sha256_file(const std::string& path);
 std::unordered_set<std::string> load_hashes(const std::string& filename);
