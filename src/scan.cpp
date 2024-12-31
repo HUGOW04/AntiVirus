@@ -11,25 +11,25 @@ std::string filePath = "";
 std::string hashString = "";
 std::string status = "";
 std::string numofthreat = "";
-std::string errorMSG = "";
+std::string msg = "";
 size_t threat = 0;
 
 std::string sha256_file(const std::string& path) {
     EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
     if (!mdctx) {
-        errorMSG = "Error creating EVP_MD_CTX";
+        msg = "Error creating EVP_MD_CTX";
         return "";
     }
 
     if (1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL)) {
-        errorMSG = "Error initializing SHA-256";
+        msg = "Error initializing SHA-256";
         EVP_MD_CTX_free(mdctx);
         return "";
     }
 
     std::ifstream file(path, std::ifstream::binary);
     if (!file) {
-        errorMSG = "Error opening file: " + path;
+        msg = "Error opening file: " + path;
         EVP_MD_CTX_free(mdctx);
         return "";
     }
@@ -37,18 +37,18 @@ std::string sha256_file(const std::string& path) {
     char buffer[8192];
     while (file.read(buffer, sizeof(buffer))) {
         if (1 != EVP_DigestUpdate(mdctx, buffer, file.gcount())) {
-            errorMSG = "Error updating digest";
+            msg = "Error updating digest";
             EVP_MD_CTX_free(mdctx);
             return "";
         }
     }
     if (file.bad()) {
-        errorMSG = "Error reading file";
+        msg = "Error reading file";
         EVP_MD_CTX_free(mdctx);
         return "";
     }
     if (1 != EVP_DigestUpdate(mdctx, buffer, file.gcount())) {
-        errorMSG = "Error updating digest";
+        msg = "Error updating digest";
         EVP_MD_CTX_free(mdctx);
         return "";
     }
@@ -56,7 +56,7 @@ std::string sha256_file(const std::string& path) {
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned int hash_len = 0;
     if (1 != EVP_DigestFinal_ex(mdctx, hash, &hash_len)) {
-        errorMSG = "Error finalizing digest";
+        msg = "Error finalizing digest";
         EVP_MD_CTX_free(mdctx);
         return "";
     }
@@ -81,7 +81,7 @@ std::unordered_set<std::string> load_hashes(const std::string& filename) {
     std::ifstream file(filename);
 
     if (!file.is_open()) {
-        errorMSG = "Error opening file: " + filename;
+        msg = "Error opening file: " + filename;
         return hash_set;
     }
 
@@ -100,7 +100,7 @@ std::unordered_set<std::string> load_hashes(const std::string& filename) {
             hash_set.insert(line);
         }
         else {
-            errorMSG = "Invalid hash found: " + line;
+            msg = "Invalid hash found: " + line;
         }
     }
 
@@ -127,7 +127,7 @@ void process_files(const std::unordered_set<std::string>& hash_set, std::vector<
         for (const auto& file_path : batch) {
             try {
                 // Clear any previous error message
-                errorMSG.clear();
+                msg.clear();
                 
                 std::string hash = sha256_file(file_path.string());
                 if (!hash.empty()) {
@@ -154,7 +154,7 @@ void process_files(const std::unordered_set<std::string>& hash_set, std::vector<
             }
             catch (const std::exception& e) {
                 std::lock_guard<std::mutex> lock(output_mutex);
-                errorMSG = "Error processing file " + file_path.string() + ": " + e.what();
+                msg = "Error processing file " + file_path.string() + ": " + e.what();
             }
         }
         
@@ -168,18 +168,18 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
     files_processed = 0;
     total_files = 0;
     threat = 0;
-    errorMSG.clear();
+    msg.clear();
     
     if (!std::filesystem::exists(path)) {
         std::lock_guard<std::mutex> lock(output_mutex);
-        errorMSG = "Error: Directory does not exist: " + path;
+        msg = "Error: Directory does not exist: " + path;
         scanning = false;
         return;
     }
 
     if (!std::filesystem::is_directory(path)) {
         std::lock_guard<std::mutex> lock(output_mutex);
-        errorMSG = "Error: Path is not a directory: " + path;
+        msg = "Error: Path is not a directory: " + path;
         scanning = false;
         return;
     }
@@ -205,7 +205,7 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
 
             if (ec) {
                 std::lock_guard<std::mutex> lock(output_mutex);
-                errorMSG = "Warning: Skipping path: " + entry.path().string() + " (" + ec.message() + ")";
+                msg = "Warning: Skipping path: " + entry.path().string() + " (" + ec.message() + ")";
                 ec.clear();
                 continue;
             }
@@ -217,21 +217,21 @@ void scan_directory(const std::string& path, const std::unordered_set<std::strin
                 }
             } catch (const std::filesystem::filesystem_error& e) {
                 std::lock_guard<std::mutex> lock(output_mutex);
-                errorMSG = "Warning: Skipping file: " + entry.path().string() + " - " + e.what();
+                msg = "Warning: Skipping file: " + entry.path().string() + " - " + e.what();
                 continue;
             }
         }
     }
     catch (const std::exception& e) {
         std::lock_guard<std::mutex> lock(output_mutex);
-        errorMSG = "Error during directory scan: " + std::string(e.what());
+        msg = "Error during directory scan: " + std::string(e.what());
         scanning = false;
         return;
     }
 
     if (file_queue.empty()) {
         std::lock_guard<std::mutex> lock(output_mutex);
-        errorMSG = "No files found in directory: " + path;
+        msg = "No files found in directory: " + path;
         scanning = false;
         return;
     }
@@ -281,22 +281,20 @@ void scan_file(const std::string& filePath, const std::unordered_set<std::string
         hashString = fileHash;
 
         if (fileHash.empty()) {
-            errorMSG = "Error: Unable to calculate hash for file.";
+            msg = "Error: Unable to calculate hash for file.";
             return;
         }
 
-        std::cout << "Calculated SHA-256 hash: " << fileHash << std::endl;
-
         if (is_hash_in_set(hash_set, fileHash)) {
-            std::cout << "File is potentially harmful (hash found in database)." << std::endl;
+            msg = "File is potentially harmful (hash found in database).";
             status = "malware";
         }
         else {
-            std::cout << "File is clean (hash not found in database)." << std::endl;
+            msg = "File is clean (hash not found in database).";
             status = "clean";
         }
     }
     catch (const std::filesystem::filesystem_error& e) {
-        errorMSG = "Filesystem error: " + std::string(e.what());
+        msg = "Filesystem error: " + std::string(e.what());
     }
 }
