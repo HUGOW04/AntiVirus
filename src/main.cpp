@@ -334,7 +334,7 @@ int main(int argc, char** argv) {
     if(!fileHash.good())
     {
         if (!updateHashDatabase()) {
-            std::cerr << "Failed to update hash database: " << errorMSG << std::endl;
+            std::cerr << "Failed to update hash database: " << msg << std::endl;
             std::cerr << "Will try to use existing database file..." << std::endl;
         }
         std::cout << "Updating malware hash database..." << std::endl;
@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
         Widget(80.0f, 320.0f, 200.0f, 30.0f, 0.0f, rectColor,numofthreat),
         Widget(80.0f, 280.0f, 720.0f, 30.0f, 20.0f, rectColor,hashString),
         Widget(80.0f, 150.0f, 720.0f, 100.0f, 20.0f, rectColor, filePath),
-        Widget(80.0f, 5.0f, 720.0f, 140.0f, 20.0f, rectColor, errorMSG),
+        Widget(80.0f, 5.0f, 720.0f, 140.0f, 20.0f, rectColor, msg),
     };
 
     networkRects = {
@@ -478,7 +478,7 @@ int main(int argc, char** argv) {
                 scanRects[3].setText("viruses found: " + numofthreat);
                 scanRects[4].setText("sha256: "+hashString);
                 scanRects[5].setText("filepath: " + filePath);
-                scanRects[6].setText("warning: " + errorMSG);
+                scanRects[6].setText("msg: " + msg);
             }
             else
             {
@@ -488,7 +488,7 @@ int main(int argc, char** argv) {
                 scanRects[3].setText("viruses found: " + numofthreat);
                 scanRects[4].setText("sha256: "+hashString);
                 scanRects[5].setText("filepath: ");
-                scanRects[6].setText("warning: " + errorMSG);
+                scanRects[6].setText("msg: " + msg);
             }
         }
         else if(network)
