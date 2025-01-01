@@ -212,6 +212,8 @@ int main(int argc, char** argv) {
         }
         // Swap the screen buffers
         glfwSwapBuffers(window);
+        newHoveredButton = nullptr;
+        currentlyHoveredButton = nullptr;
     }
     curl_global_cleanup();
     // Terminate GLFW
