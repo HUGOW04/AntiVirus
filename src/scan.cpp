@@ -110,9 +110,7 @@ void process_files(const std::unordered_set<std::string>& hash_set,
     auto log_file = std::make_shared<std::ofstream>("log.txt", std::ios::app);
     
     for (const auto& file_path : file_batch) {
-        try {
-            msg.clear();
-            
+        try {           
             std::string hash = sha256_file(file_path.string());
             if (!hash.empty()) {
                 std::lock_guard<std::mutex> lock(output_mutex);
@@ -121,16 +119,21 @@ void process_files(const std::unordered_set<std::string>& hash_set,
                 hashString = hash;
                 
                 if (is_hash_in_set(hash_set, hash)) {
+                    std::lock_guard<std::mutex> threat_lock(queue_mutex);
                     threat++;
                     status = "malware";
-                    numofthreat = std::to_string(threat);
+                    numofthreat = std::to_string(threat.load());
+                    msg = "File is clean (hash not found in database).";
                     
                     if (log_file && log_file->is_open()) {
-                        *log_file << "MALWARE DETECTED: " << filePath << '\n';
+                        *log_file << "MALWARE DETECTED: " << filePath << "\n";
+                        *log_file << "Hash: " << hash << "\n";
+                        *log_file << "Total threats found: " << threat.load() << "\n\n";
                         log_file->flush();
                     }
                 } else {
                     status = "clean";
+                    msg = "File is clean (hash not found in database).";
                 }
             }
             
@@ -141,7 +144,7 @@ void process_files(const std::unordered_set<std::string>& hash_set,
             msg = "Error processing file " + file_path.string() + ": " + e.what();
             
             if (log_file && log_file->is_open()) {
-                *log_file << msg << '\n';
+                *log_file << "ERROR: " << msg << "\n\n";
                 log_file->flush();
             }
         }
@@ -152,10 +155,15 @@ void scan_directory(const std::string& path,
                    const std::unordered_set<std::string>& hash_set) {
     if (scanning.exchange(true)) return;
     
+    // Reset all status variables at start
     files_processed = 0;
     total_files = 0;
     threat = 0;
     msg.clear();
+    status = "scanning...";
+    hashString.clear();
+    filePath.clear();
+    numofthreat = "0";
     
     if (!std::filesystem::exists(path)) {
         msg = "Error: Directory does not exist: " + path;
